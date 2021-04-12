@@ -1,7 +1,7 @@
 import { DatabaseSession } from './database-session';
 import { Connection, EntityManager, QueryRunner, Repository } from 'typeorm';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
-import { TransactionAlreadyStartedException } from './TransactionAlreadyStartedException';
+import { TransactionAlreadyStartedException } from '../exceptions/transaction-already-started.exception';
 
 export class TypeOrmDatabaseSession implements DatabaseSession {
   private isTransactionBegan: boolean;
@@ -21,15 +21,25 @@ export class TypeOrmDatabaseSession implements DatabaseSession {
   }
 
   async transactionCommit(): Promise<void> {
-    await this.queryRunner.commitTransaction();
-    await this.queryRunner.release();
-    this.isTransactionBegan = false;
+    try {
+      await this.queryRunner.commitTransaction();
+      this.isTransactionBegan = false;
+    } catch (e) {
+      throw e;
+    } finally {
+      await this.queryRunner.release();
+    }
   }
 
   async transactionRollback(): Promise<void> {
-    await this.queryRunner.rollbackTransaction();
-    await this.queryRunner.release();
-    this.isTransactionBegan = false;
+    try {
+      await this.queryRunner.rollbackTransaction();
+      this.isTransactionBegan = false;
+    } catch (e) {
+      throw e;
+    } finally {
+      await this.queryRunner.release();
+    }
   }
 
   getQueryRunner(): QueryRunner {

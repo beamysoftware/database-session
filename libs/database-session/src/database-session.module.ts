@@ -2,38 +2,39 @@ import {
   DynamicModule,
   FactoryProvider,
   Global,
+  MiddlewareConsumer,
   Module,
+  NestModule,
   Scope,
 } from '@nestjs/common';
 import { DATABASE_SESSION_MANAGER } from './inject-decorators';
 import { ConnectionManager, getConnectionManager } from 'typeorm';
 import { Type } from '@nestjs/common/interfaces/type.interface';
 import { ForwardReference } from '@nestjs/common/interfaces/modules/forward-reference.interface';
-import { DatabaseSessionManager } from './database-session.manager';
+import { AsyncStorageDatabaseSessionManager } from './database/async-storage-database-session.manager';
 import { Provider } from '@nestjs/common/interfaces/modules/provider.interface';
+import { TransactionMiddleware } from './transaction.middlewares';
 
 @Global()
 @Module({})
-export class DatabaseSessionModule {
+export class DatabaseSessionModule implements NestModule {
   private static readonly DATABASE_SESSION_OPTIONS_PROVIDER =
     'DATABASE_SESSION_OPTIONS_PROVIDER';
 
-  static async forRoot(): Promise<DynamicModule> {
-    return this.forRootAsync();
-  }
-
-  static forRootAsync(options?: DatabaseSessionModuleOptions) {
+  static forRoot(options?: DatabaseSessionModuleOptions): DynamicModule {
     const providers: Provider[] = [
+      TransactionMiddleware,
       {
         provide: DATABASE_SESSION_MANAGER,
         useFactory: (connectionManager?: ConnectionManager) => {
           connectionManager = connectionManager ?? getConnectionManager();
-          return new DatabaseSessionManager(connectionManager);
+          return new AsyncStorageDatabaseSessionManager(connectionManager);
         },
-        scope: Scope.REQUEST,
+        scope: Scope.DEFAULT,
         inject: options?.inject ?? [],
       },
     ];
+
     if (options) {
       providers.push({
         provide: this.DATABASE_SESSION_OPTIONS_PROVIDER,
@@ -48,6 +49,10 @@ export class DatabaseSessionModule {
       module: DatabaseSessionModule,
       imports: options?.imports ?? [],
     };
+  }
+
+  configure(consumer: MiddlewareConsumer): any {
+    consumer.apply(TransactionMiddleware).forRoutes('*');
   }
 }
 
