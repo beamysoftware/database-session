@@ -1,10 +1,15 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { TransactionController } from './transaction.controller';
 import { ExampleRepository } from './example.repository';
 import { ExampleModel } from './example.model';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { DatabaseSessionModule } from '../../src';
+import {
+  DatabaseSessionModule,
+  InjectDatabaseSessionManager,
+  TransactionMiddleware,
+} from '../../src';
 import { ExampleSecondRepository } from './example-second.repository';
+import { AsyncStorageDatabaseSessionManager } from '../../src/database/async-storage-database-session.manager';
 
 export const SECOND_DATABASE_CONNECTION = 'second-database';
 
@@ -34,4 +39,17 @@ export const SECOND_DATABASE_CONNECTION = 'second-database';
   ],
   controllers: [TransactionController],
 })
-export class DatabaseSessionTestModule {}
+export class DatabaseSessionTestModule implements NestModule {
+  constructor(
+    @InjectDatabaseSessionManager()
+    private readonly databaseSessionManager: AsyncStorageDatabaseSessionManager,
+  ) {}
+
+  configure(consumer: MiddlewareConsumer): any {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    consumer
+      .apply(TransactionMiddleware(this.databaseSessionManager))
+      .forRoutes('*');
+  }
+}
