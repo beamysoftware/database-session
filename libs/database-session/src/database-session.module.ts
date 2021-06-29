@@ -2,9 +2,7 @@ import {
   DynamicModule,
   FactoryProvider,
   Global,
-  MiddlewareConsumer,
   Module,
-  NestModule,
   Scope,
 } from '@nestjs/common';
 import { DATABASE_SESSION_MANAGER } from './inject-decorators';
@@ -13,17 +11,15 @@ import { Type } from '@nestjs/common/interfaces/type.interface';
 import { ForwardReference } from '@nestjs/common/interfaces/modules/forward-reference.interface';
 import { AsyncStorageDatabaseSessionManager } from './database/async-storage-database-session.manager';
 import { Provider } from '@nestjs/common/interfaces/modules/provider.interface';
-import { TransactionMiddleware } from './transaction.middlewares';
 
 @Global()
 @Module({})
-export class DatabaseSessionModule implements NestModule {
+export class DatabaseSessionModule {
   private static readonly DATABASE_SESSION_OPTIONS_PROVIDER =
     'DATABASE_SESSION_OPTIONS_PROVIDER';
 
   static forRoot(options?: DatabaseSessionModuleOptions): DynamicModule {
     const providers: Provider[] = [
-      TransactionMiddleware,
       {
         provide: DATABASE_SESSION_MANAGER,
         useFactory: (connectionManager?: ConnectionManager) => {
@@ -49,10 +45,6 @@ export class DatabaseSessionModule implements NestModule {
       module: DatabaseSessionModule,
       imports: options?.imports ?? [],
     };
-  }
-
-  configure(consumer: MiddlewareConsumer): any {
-    consumer.apply(TransactionMiddleware).forRoutes('*');
   }
 }
 
